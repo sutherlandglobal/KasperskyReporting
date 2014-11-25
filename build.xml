@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project basedir="." default="build" name="KasperskyReporting">
+    <property environment="env"/>
+    <property name="debuglevel" value="source,lines,vars"/>
+	<property name="target" value="1.7"/>
+    <property name="source" value="1.7"/>
+	
+	<loadproperties srcfile="build.properties" />
+
+	
+    <path id="site.build.classes">
+        <pathelement location="${SITE_DIR}/bin"/>
+		<pathelement location="${SITE_DIR}/WEB-INF/classes"/>
+		<pathelement location="${SITE_LIB}/jtds-1.2.5.jar"/>
+    	<pathelement location="${SITE_LIB}/Helios.jar"/>
+    	<pathelement location="${SITE_LIB}/jdom-2.0.5.jar"/>
+		<pathelement location="${SITE_LIB}/jcommon-1.0.21.jar" />
+    	<pathelement location="${SITE_LIB}/jfreechart-1.0.17.jar"/>
+        <pathelement location="${SITE_LIB}/log4j-1.2.17.jar"/>
+    	<pathelement location="${SITE_LIB}/gson-2.2.4.jar"/>
+        <pathelement location="${SITE_LIB}/servlet-api-2.5.jar"/>
+    	<pathelement location="${SITE_LIB}/commons-collections3.jar"/>
+    	<pathelement location="${SITE_LIB}/commons-lang.jar"/>
+
+    </path>
+	<pathconvert property="site.build.classpath" pathsep=" ">
+   	 	<path refid="site.build.classes" />
+  	</pathconvert>
+	
+	<path id="site.build.junit.classes">
+		<pathelement location="${SITE_DIR}/bin"/>
+		<pathelement location="${SITE_DIR}/WEB-INF/classes"/>
+		<pathelement location="${SITE_LIB}/jtds-1.2.5.jar"/>
+    	<pathelement location="${SITE_LIB}/Helios.jar"/>
+    	<pathelement location="${SITE_LIB}/jdom-2.0.5.jar"/>
+    	<pathelement location="${SITE_LIB}/junit4.jar"/>
+		<pathelement location="${SITE_LIB}/jcommon-1.0.21.jar" />
+    	<pathelement location="${SITE_LIB}/jfreechart-1.0.17.jar"/>
+        <pathelement location="${SITE_LIB}/log4j-1.2.17.jar"/>
+    	<pathelement location="${SITE_LIB}/gson-2.2.4.jar"/>
+        <pathelement location="${SITE_LIB}/servlet-api-2.5.jar"/>
+	</path>
+	<pathconvert property="site.build.junit.classpath" pathsep=" ">
+   	 	<path refid="site.build.junit.classes" />
+  	</pathconvert>
+	
+    <path id="site.deploy.classes">
+		<pathelement location="${WEB_APP_DIR}/WEB-INF/classes"/>
+		<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/jtds-1.2.5.jar"/>
+    	<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/Helios.jar"/>
+    	<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/jdom-2.0.5.jar"/>
+		<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/jcommon-1.0.21.jar" />
+    	<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/jfreechart-1.0.17.jar"/>
+        <pathelement location="${WEB_APP_DIR}/WEB-INF/lib/log4j-1.2.17.jar"/>
+    	<pathelement location="${WEB_APP_DIR}/WEB-INF/lib/gson-2.2.4.jar"/>
+        <pathelement location="${TOMEE_HOME}/lib/servlet-api.jar"/>
+    </path>
+	<pathconvert property="site.deploy.classpath" pathsep=" ">
+   	 	<path refid="site.deploy.classes" />
+  	</pathconvert>
+	
+
+	
+	
+    <echo message="Tomee Home: ${PLATFORM_DIR}"/>
+    <echo message="App Home: ${SITE_DIR}"/>
+     <echo message="App Jar Dir: ${SITE_LIB}"/>
+     <echo message="App Deploy Dir: ${TOMEE_APP_DIR}"/>
+   	 <echo message="Target Version: ${target}"/>
+     <echo message="Source Version: ${source}"/>
+     
+	<target name="properties">
+    	<echoproperties />
+	</target>
+    <target name="init">
+        <mkdir dir="${SITE_DIR}/bin" />
+        <copy includeemptydirs="false" todir="${SITE_DIR}/bin" verbose="on">
+            <fileset dir="${SITE_SRC_DIR}">
+                <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+    </target>
+    	
+    <target name="clean">
+        <delete dir="${SITE_DIR}/bin" verbose="true"/>
+    	<delete dir="${SITE_DIR}/test" verbose="on"/>
+    	<delete dir="${SITE_DIR}/doc" verbose="on"/>
+    	<delete dir="${SITE_BUILD_DIR}" verbose="on"/>
+    		    	
+    	<delete file="${SITE_DIR}/${WAR_FILE}" verbose="true"/>
+    	<delete file="${SITE_DIR}/${JAR_FILE}" verbose="true"/>
+
+    </target>
+	
+	<target name ="build-war" depends="build-jar">
+		<!-- assume sourcegen was successful, which creates everything under /build -->
+		
+		<!-- load helios common resources into  ${SITE_BUILD_DIR}/ui -->
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent/css"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent/js"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent/images"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent/logs"/>
+
+		<!-- get the ui resources from the helios lib -->
+		<unzip overwrite="true" src="${SITE_LIB}/Helios.jar" dest="${SITE_BUILD_DIR}/webapp/WebContent" >
+		    <patternset>
+		    	<include name="resources/**"/>
+		    </patternset>
+		</unzip>
+		
+		<!-- shuffle the helios ui resources into a viable web app -->
+		<!-- source is WebContent/resources/, target is WebContent -->
+		<!-- combine local and site css -->
+		<copy force="true" todir="${SITE_BUILD_DIR}/webapp/WebContent/css" verbose ="on">
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/local/css/"/>
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/site/css/"/>
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/css/"/>
+        </copy>
+		
+		<!-- combine local and site js -->
+		<copy force="true" todir="${SITE_BUILD_DIR}/webapp/WebContent/js" verbose ="on">
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/js/"/>
+        </copy>
+		
+		<!-- combine local and site jsp -->
+		<copy force="true" todir="${SITE_BUILD_DIR}/webapp/WebContent/" verbose ="on">
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/site/jsp"/>
+            <fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/jsp"/>
+        </copy>
+		
+		<!-- load site banner into ui images dir-->
+		<copy force="true" todir ="${SITE_BUILD_DIR}/webapp/WebContent/images" verbose="on">
+			<file name="${SITE_LOGO}"/>
+			<fileset dir="${SITE_BUILD_DIR}/webapp/WebContent/resources/images"/>
+		</copy>
+		
+		<!-- copy site classes (servlets, etc) -->
+        <copy force="true" includeemptydirs="false" todir="${SITE_BUILD_DIR}/webapp/WEB-INF/classes" verbose ="on">
+            <fileset dir="${SITE_DIR}/bin/">
+                <exclude name="**/package-info.java"/>
+            	<exclude name="**/test/**"/>
+            	<exclude name="**/report/**"/>
+            	<exclude name="**/datasources/**"/>
+            </fileset>
+         </copy>
+				
+		<copy force="true" includeemptydirs="false" todir="${SITE_BUILD_DIR}/webapp/WEB-INF/lib" verbose ="on">
+            <fileset dir="${SITE_DIR}/lib">
+		   		<exclude name="servlet-api*jar"/>
+            </fileset>
+        </copy>
+		
+		<copy force="true" file="${SITE_DIR}/${JAR_FILE}" todir ="${SITE_BUILD_DIR}/webapp/WEB-INF/lib" verbose="on"/>
+		
+		<delete dir="${SITE_BUILD_DIR}/webapp/WebContent/resources"/>
+		
+		<war destfile="${WAR_FILE}" webxml="${SITE_BUILD_DIR}/webapp/WEB-INF/WEB.xml" >
+
+	   		<fileset dir="${SITE_BUILD_DIR}/webapp/WebContent">
+	      		<include name="**/*"/>
+	   		</fileset>
+			
+			<fileset dir="${SITE_DIR}" includes="META-INF/**"/>
+			<fileset dir="${SITE_DIR}" includes="doc/**"/>
+			<fileset dir="${SITE_DIR}" includes="test/**"/>
+			
+		   	<lib dir="${SITE_BUILD_DIR}/webapp/WEB-INF/lib"/>
+			
+		  	<classes dir="${SITE_BUILD_DIR}/webapp/WEB-INF/classes"/>
+		</war>		
+	</target>
+	
+	<target name="undeploy">
+		<delete file="${TOMEE_APP_DIR}/${WAR_FILE}"/>
+		<delete dir="${WEB_APP_DIR}"/>
+		
+	  	<sleep seconds="5"/>
+	</target>
+	
+	  <target name="javadoc" depends="build">
+	        <javadoc access="private" author="true" destdir="${SITE_DIR}/doc/" nodeprecated="false" nodeprecatedlist="false" noindex="false" nonavbar="false" notree="false" 
+				packagenames="*"
+				source="${target}" splitindex="true" use="true" version="true" useexternalfile="true" >
+	        	
+				<classpath refid="site.build.classes"/>
+    	
+	        	<fileset dir="${SITE_SRC_DIR}" defaultexcludes="yes">
+	        	  	<exclude name="**/test/**"/>
+	        	</fileset>
+	        	
+	        	<fileset dir="${SITE_BUILD_DIR}/" defaultexcludes="yes">
+	        	  	<exclude name="**/test/**"/>
+	        		<exclude name="**/webapp/**"/>
+	        	</fileset>
+	        	
+				<link href="http://download.oracle.com/javase/7/docs/api/"/>
+	        	<link href="http://www.jfree.org/jfreechart/api/javadoc/"/>
+	        	<link href="http://logging.apache.org/log4j/2.x/log4j-api/apidocs/"/>
+	        	<link href="http://tomcat.apache.org/tomcat-7.0-doc/servletapi/"/>
+			</javadoc>
+	  </target>
+	<target name="test" depends="build,build-jar">
+  		<mkdir dir="${SITE_DIR}/logs"/>
+  		<mkdir dir="${SITE_DIR}/test"/>
+		
+		<junit failureProperty="test.failure" fork="yes">
+			<classpath refid="site.build.junit.classes" />
+			
+			<!--two formatters, one for ant output, the other for the test files-->
+			<formatter type="plain" usefile="false" />
+			<formatter type="plain" usefile="true" extension="" />
+    	</junit>
+		
+    	<fail message="test failed" if="test.failure" />
+	</target>
+    <target depends="clean" name="cleanall"/>
+    
+	<target name="sourcegen" depends="init">
+		<mkdir dir="${SITE_BUILD_DIR}/"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WEB-INF"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WEB-INF/lib"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WEB-INF/classes"/>
+		<mkdir dir="${SITE_BUILD_DIR}/webapp/WebContent"/>		
+
+		
+		<!-- launch velocity codegen--> 	
+    	<java classname="com.sutherland.helios.site.codegen.SiteCodeGenerator" >
+    		<classpath refid="site.build.classes"/>
+    		<arg value="build.properties"/>
+    	</java>		
+	</target>
+	
+	<target name="build" depends="sourcegen" >
+    	
+	   	<mkdir dir="${SITE_DIR}/bin"/>
+    	
+    	<!-- project building here -->
+    	
+        <echo message="${ant.project.name}: ${ant.file}"/>
+        <javac includeantruntime="false"  debug="true" debuglevel="${debuglevel}" destdir="bin" source="${source}" target="${target}" verbose="on" excludes ="**/package-info.java">
+            <src path="${SITE_SRC_DIR}"/>
+        	<src path="${SITE_BUILD_DIR}"/>
+            <classpath refid="site.build.junit.classes"/>
+        </javac>
+    </target>
+	
+	<target name="build-jar" depends="build" >
+		<jar description="Jar for Tomcat Deployment" destfile="${SITE_DIR}/${JAR_FILE}" basedir="bin" excludes="**/test/*" includes="**/*.class" >
+    		<manifest>
+    			<attribute name="Awesome" value="true"/>
+     			<attribute name="Main-Class" value=""/>
+				<attribute name="Class-Path" value="${site.deploy.classpath}"/>
+			</manifest>
+  		</jar>
+  	</target>
+		
+	  <target name ="deploy" depends="build,build-jar,javadoc,build-war,undeploy">
+	   	<mkdir dir="${SITE_DIR}/logs"/>
+	  	<copy file="${SITE_DIR}/${WAR_FILE}" todir="${TOMEE_APP_DIR}" verbose="on" />
+
+	  	<sleep seconds="5"/>
+		<exec executable="/bin/date" />
+	</target>
+	
+	<target name="nuke">
+		<delete dir="${SITE_SRC_DIR}"/>
+	</target>
+</project>
