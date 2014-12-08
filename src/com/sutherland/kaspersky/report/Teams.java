@@ -7,7 +7,6 @@ package com.sutherland.kaspersky.report;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
-import java.util.TreeSet;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -175,11 +174,8 @@ public final class Teams extends Report
 	{
 		ArrayList<String> retval = new ArrayList<String>();
 
-		retval.add("Team Name");
-		retval.add("Desc");
-		retval.add("Created Date");
-		retval.add("Created By");
-		
+		retval.add("Team");
+
 		return retval;
 	}
 
@@ -188,50 +184,11 @@ public final class Teams extends Report
 	{
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
-		roster = new KasperskyRoster();
-		roster.setChildReport(true);
-		roster.setParameters(getParameters());
-		roster.load();
-
-		//for each roster member, add every team we find to the list
-		TreeSet<String> teamSet = new TreeSet<String>();
-		for(String userID : roster.getUserIDs())
-		{			
-			teamSet.add(roster.getUser(userID).getAttributeData(KasperskyRoster.TEAMNAME_ATTR).get(0));
-		}
-		
-		String[] teamCreatorRow;
-		
-		String teamCreator;
-		for(String teamName : teamSet)
+		for(String[] row : dbConnection.runQuery("Select distinct team from lmi_kaspersky_roster where parent_id = '10982630' "))
 		{
-			//for each teamname, query crm_mst_userteam table for more info
-			
-			for(String[] row : dbConnection.runQuery("Select uteam_description,uteam_createddate, uteam_createdby from crm_mst_userteam where uteam_teamname ='" + teamName + "'"))
-			{
-				if(row[2] != null)
-				{
-					try
-					{
-						//explicit query, since management creates a lot of users, and probably isn't in the roster
-						teamCreatorRow = dbConnection.runQuery("select user_firstname, user_lastname from crm_mst_user where user_userid = '" + row[2] + "'").get(0);
-						teamCreator = teamCreatorRow[0] + " " + teamCreatorRow[1];
-					}
-					catch(Exception e)
-					{		
-						logErrorMessage( ExceptionFormatter.asString(e));
-						teamCreator = "";
-					}
-				}
-				else
-				{
-					teamCreator = "";
-				}
-				
-				retval.add(new String[]{teamName, row[0], row[1], teamCreator});
-			}
+			retval.add(row);
 		}
-	
+
 		return retval;
 	}
 
