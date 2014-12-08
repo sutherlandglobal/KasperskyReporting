@@ -211,7 +211,7 @@ public final class KasperskyRoster extends Roster implements Attributes
 
 		Datum newUser = null;
 		
-		String query = 	"SELECT NODE_ID,PARENT_ID,TEAM,NAME,EMAIL,DESCRIPTION,STATUS,TYPE_ATTR FROM LMI_KASPERSKY_ROSTER";
+		String query = 	"SELECT NODE_ID,PARENT_ID,TEAM,NAME,EMAIL,DESCRIPTION,STATUS,TYPE FROM LMI_KASPERSKY_ROSTER where parent_id = '10982630' and type != 'Administrator' and type != 'AdministratorLink'  and type != 'MasterAdministrator' ";
 		
 		for(String[] row:  dbConnection.runQuery(query))
 		{
