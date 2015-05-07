@@ -4,6 +4,7 @@
 package com.sutherland.kaspersky.report;
 
 import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
@@ -16,6 +17,7 @@ import com.sutherland.helios.data.Aggregation;
 import com.sutherland.helios.data.attributes.DataAttributes;
 import com.sutherland.helios.data.formatting.NumberFormatter;
 import com.sutherland.helios.data.granularity.user.UserGrains;
+import com.sutherland.helios.data.units.DataUnits;
 import com.sutherland.helios.database.connection.SQL.ConnectionFactory;
 import com.sutherland.helios.database.connection.SQL.RemoteConnection;
 import com.sutherland.helios.date.formatting.DateFormatter;
@@ -39,7 +41,8 @@ public final class LMICSATRate extends Report  implements DataAttributes
 	private final String dbPropFile = DatabaseConfigs.KASP_DEV_DB;
 	private KasperskyRoster roster;
 	private final static Logger logger = Logger.getLogger(LMICSATRate.class);
-
+	private final static GregorianCalendar SCORING_CHANGE_DATE = DateParser.convertSQLDateToGregorian("2015-01-29 11:30:00");
+	
 	public static String uiGetReportName()
 	{
 		return "LMI CSAT Rate";
@@ -186,12 +189,12 @@ public final class LMICSATRate extends Report  implements DataAttributes
 	 * @see helios.Report#runReport(java.lang.String, java.lang.String)
 	 */
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception
+	protected ArrayList<String[]> loadData() throws Exception
 	{
 		
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
-		String query = "SELECT Date,Session_ID,Customer_Name,Technician_Name,Technician_ID,Q1,Q2,Q3,Q4,Q5 FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
+		String query = "SELECT Date,Technician_ID,Q1,Q2,Q3,Q4 FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
 				getParameters().getStartDate() + 
 				"' AND Date < '" + 
 				getParameters().getEndDate() + 
@@ -200,7 +203,7 @@ public final class LMICSATRate extends Report  implements DataAttributes
 
 		Aggregation reportData = new Aggregation();
 
-		String tID, q1, q2, q3, q4, q5, reportGrain;
+		String tID, q1, q2, q3, q4, reportGrain;
 		int maxPoints, surveyPoints;
 		
 		roster = new KasperskyRoster();
@@ -212,31 +215,46 @@ public final class LMICSATRate extends Report  implements DataAttributes
 		//don't assign time grain just yet. in case this is a non-time report, because the timegrain param is not guaranteed to be set 
 		int timeGrain, userGrain, dateFormat;
 		double csatRate;
+		GregorianCalendar surveyDate;
 		
 		for(String[] row:  dbConnection.runQuery(query))
 		{
 			maxPoints = 0;
 			surveyPoints = 0;
 
-			tID = row[4];
+			tID = row[1];
 			if(roster.hasUser(tID) )
 			{
-				q1 = row[5];
-				q2 = row[6];
-				q3 = row[7];
-				q4 = row[8];
-				q5 = row[9];
+				q1 = row[2];
+				q2 = row[3];
+				q3 = row[4];
+				q4 = row[5];
+				surveyDate = DateParser.convertSQLDateToGregorian(row[0]);
 
 				if( !q1.equals("") )
 				{
 					surveyPoints += Integer.parseInt(q1);
-					maxPoints += 10;
+					if(surveyDate.before(SCORING_CHANGE_DATE))
+					{
+						maxPoints += 10;
+					}
+					else
+					{
+						maxPoints += 5;
+					}
 				}
 
 				if( !q2.equals("") )
 				{
 					surveyPoints += Integer.parseInt(q2);
-					maxPoints += 10;
+					if(surveyDate.before(SCORING_CHANGE_DATE))
+					{
+						maxPoints += 10;
+					}
+					else
+					{
+						maxPoints += 5;
+					}
 				}
 
 				if( !q3.equals("") )
@@ -248,13 +266,14 @@ public final class LMICSATRate extends Report  implements DataAttributes
 				if( !q4.equals("") )
 				{
 					surveyPoints += Integer.parseInt(q4);
-					maxPoints += 10;
-				}
-
-				if( !q5.equals("") )
-				{
-					surveyPoints += Integer.parseInt(q5);
-					maxPoints += 10;
+					if(surveyDate.before(SCORING_CHANGE_DATE))
+					{
+						maxPoints += 10;
+					}
+					else
+					{
+						maxPoints += 5;
+					}
 				}
 
 				//throw out blank surveys
@@ -262,25 +281,24 @@ public final class LMICSATRate extends Report  implements DataAttributes
 				if(maxPoints > 0)
 				{
 					csatRate = (double)surveyPoints/(double)maxPoints;
+					
+					if(isTimeTrendReport())
+					{
+						timeGrain = Integer.parseInt(getParameters().getTimeGrain());
+						dateFormat = Integer.parseInt(getParameters().getDateFormat());
+						reportGrain = DateFormatter.getFormattedDate(surveyDate, timeGrain, dateFormat);
+					}
+					else //if(isStackReport())
+					{
+						userGrain = Integer.parseInt(getParameters().getUserGrain());
+						reportGrain = UserGrains.getUserGrain(userGrain, roster.getUser(tID));
+					}
+					
+					reportData.addDatum(reportGrain);
+					reportData.getDatum(reportGrain).addAttribute(SAT_SURVEYS_ATTR);
+					reportData.getDatum(reportGrain).addData(SAT_SURVEYS_ATTR, csatRate);
 				}
-				
-				if(isTimeTrendReport())
-				{
-					timeGrain = Integer.parseInt(getParameters().getTimeGrain());
-					dateFormat = Integer.parseInt(getParameters().getDateFormat());
-					reportGrain = DateFormatter.getFormattedDate(DateParser.convertSQLDateToGregorian(row[0]), timeGrain, dateFormat);
-				}
-				else //if(isStackReport())
-				{
-					userGrain = Integer.parseInt(getParameters().getUserGrain());
-					reportGrain = UserGrains.getUserGrain(userGrain, roster.getUser(tID));
-				}
-				
-				reportData.addDatum(reportGrain);
-				reportData.getDatum(reportGrain).addAttribute(SAT_SURVEYS_ATTR);
-				reportData.getDatum(reportGrain).addData(SAT_SURVEYS_ATTR, csatRate);
 			}
-
 		}
 		
 		for( Entry<String, String> queryStats  : dbConnection.getStatistics().entrySet())
@@ -314,5 +332,11 @@ public final class LMICSATRate extends Report  implements DataAttributes
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return DataUnits.CSAT_RATE;
 	}
 }

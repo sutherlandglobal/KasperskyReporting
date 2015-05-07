@@ -180,7 +180,7 @@ public final class Teams extends Report
 	}
 
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception 
+	protected ArrayList<String[]> loadData() throws Exception 
 	{
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
@@ -217,5 +217,11 @@ public final class Teams extends Report
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return null;
 	}
 }

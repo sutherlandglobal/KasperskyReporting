@@ -14,6 +14,7 @@ import org.apache.log4j.MDC;
 import com.sutherland.helios.api.report.frontend.ReportFrontEndGroups;
 import com.sutherland.helios.data.Aggregation;
 import com.sutherland.helios.data.attributes.DataAttributes;
+import com.sutherland.helios.data.formatting.NumberFormatter;
 import com.sutherland.helios.data.granularity.user.UserGrains;
 import com.sutherland.helios.data.units.DataUnits;
 import com.sutherland.helios.database.connection.SQL.ConnectionFactory;
@@ -28,26 +29,28 @@ import com.sutherland.helios.report.Report;
 import com.sutherland.helios.report.parameters.groups.ReportParameterGroups;
 import com.sutherland.kaspersky.datasources.DatabaseConfigs;
 
-
 /**
  * @author Jason Diamond
  *
  */
-public final class LMICSATVolume extends Report implements DataAttributes 
+public final class NetPromoterScore extends Report  implements DataAttributes
 {
 	private RemoteConnection dbConnection;
 	private final String dbPropFile = DatabaseConfigs.KASP_DEV_DB;
 	private KasperskyRoster roster;
-	private final static Logger logger = Logger.getLogger(LMICSATVolume.class);
+	private final static Logger logger = Logger.getLogger(NetPromoterScore.class);
+	private final static String NET_PROM_ATTR = "netPromoter";
+	private final static String NON_NET_PROM_ATTR = "nonNetProm";
+	private final static String VIABLE_SURVEYS_ATTR = "viableSurveys";
 	
 	public static String uiGetReportName()
 	{
-		return "LMI CSAT Volume";
+		return "Net Promoter Score";
 	}
 	
 	public static String uiGetReportDesc()
 	{
-		return "Customer satisfaction survey count for LMI surveys.";
+		return "How likely a customer would recommend the client.";
 	}
 	
 	public final static LinkedHashMap<String, String> uiSupportedReportFrontEnds = ReportFrontEndGroups.BASIC_METRIC_FRONTENDS;
@@ -59,7 +62,7 @@ public final class LMICSATVolume extends Report implements DataAttributes
 	 * 
 	 * @throws ReportSetupException		If a failure occurs during creation of the report or its resources.
 	 */
-	public LMICSATVolume() throws ReportSetupException 
+	public NetPromoterScore() throws ReportSetupException
 	{
 		super();
 	}
@@ -73,9 +76,9 @@ public final class LMICSATVolume extends Report implements DataAttributes
 		boolean retval = false;
 
 		try
-		{			
-			reportName = LMICSATVolume.uiGetReportName();
-			reportDesc = LMICSATVolume.uiGetReportDesc(); 
+		{
+			reportName = NetPromoterScore.uiGetReportName();
+			reportDesc = NetPromoterScore.uiGetReportDesc();
 			
 			for(Entry<String, ArrayList<String>> reportType : uiReportParameters.entrySet())
 			{
@@ -84,7 +87,7 @@ public final class LMICSATVolume extends Report implements DataAttributes
 					getParameters().addSupportedParameter(paramName);
 				}
 			}
-					
+			
 			retval = true;
 		}
 		catch (Exception e)
@@ -149,7 +152,7 @@ public final class LMICSATVolume extends Report implements DataAttributes
 	 */
 	@Override
 	public void close()
-	{
+	{		
 		if(dbConnection != null)
 		{
 			dbConnection.close();
@@ -177,7 +180,7 @@ public final class LMICSATVolume extends Report implements DataAttributes
 			retval.add("User Grain");
 		}
 		
-		retval.add("Case Count");
+		retval.add("Net Promoter Score (%)");
 		
 		return retval;
 	}
@@ -191,7 +194,7 @@ public final class LMICSATVolume extends Report implements DataAttributes
 		
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
-		String query = "SELECT Date,Session_ID,Customer_Name,Technician_Name,Technician_ID,Q1,Q2,Q3,Q4 FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
+		String query = "SELECT Date,Technician_ID,Session_ID,Q3 FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
 				getParameters().getStartDate() + 
 				"' AND Date < '" + 
 				getParameters().getEndDate() + 
@@ -200,8 +203,8 @@ public final class LMICSATVolume extends Report implements DataAttributes
 
 		Aggregation reportData = new Aggregation();
 
-		String tID, q1, q2, q3, q4, reportGrain;
-		int maxPoints, surveyPoints;
+		String tID, q3, reportGrain;
+		int surveyAnswer;
 		
 		roster = new KasperskyRoster();
 		roster.setChildReport(true);
@@ -214,67 +217,46 @@ public final class LMICSATVolume extends Report implements DataAttributes
 		
 		for(String[] row:  dbConnection.runQuery(query))
 		{
-			maxPoints = 0;
-			surveyPoints = 0;
-
-			tID = row[4];
+			tID = row[1];
 			if(roster.hasUser(tID) )
 			{
-				q1 = row[5];
-				q2 = row[6];
-				q3 = row[7];
-				q4 = row[8];
-
-				if( !q1.equals("") )
-				{
-					surveyPoints += Integer.parseInt(q1);
-					maxPoints += 10;
-				}
-
-				if( !q2.equals("") )
-				{
-					surveyPoints += Integer.parseInt(q2);
-					maxPoints += 10;
-				}
+				q3 = row[3];
 
 				if( !q3.equals("") )
 				{
-					surveyPoints += Integer.parseInt(q3);
-					maxPoints += 10;
-				}
-
-				if( !q4.equals("") )
-				{
-					surveyPoints += Integer.parseInt(q4);
-					maxPoints += 10;
-				}
-
-				//throw out blank surveys
-				if(maxPoints > 0)
-				{
+					surveyAnswer = Integer.parseInt(q3);
+					
 					if(isTimeTrendReport())
 					{
 						timeGrain = Integer.parseInt(getParameters().getTimeGrain());
 						dateFormat = Integer.parseInt(getParameters().getDateFormat());
-						reportGrain = DateFormatter.getFormattedDate(DateParser.convertSQLDateToGregorian(row[0]), timeGrain, dateFormat);
+						reportGrain = DateFormatter.getFormattedDate( DateParser.convertSQLDateToGregorian(row[0]), timeGrain, dateFormat);
 					}
 					else //if(isStackReport())
 					{
 						userGrain = Integer.parseInt(getParameters().getUserGrain());
 						reportGrain = UserGrains.getUserGrain(userGrain, roster.getUser(tID));
 					}
-
-					double csat = (double)surveyPoints/(double)maxPoints;
-
-					if( csat >= .85)
+					
+					reportData.addDatum(reportGrain);
+					reportData.getDatum(reportGrain).addAttribute(VIABLE_SURVEYS_ATTR);
+					reportData.getDatum(reportGrain).addAttribute(NET_PROM_ATTR);
+					reportData.getDatum(reportGrain).addAttribute(NON_NET_PROM_ATTR);
+					
+					reportData.getDatum(reportGrain).addData(VIABLE_SURVEYS_ATTR, row[2]);
+					
+					//NPS is calculated by (% of promoters (9-10) - % of detractors (0-6)).
+					
+					if(surveyAnswer == 9 || surveyAnswer == 10)
 					{
-						reportData.addDatum(reportGrain);
-						reportData.getDatum(reportGrain).addAttribute(SAT_SURVEYS_ATTR);
-						reportData.getDatum(reportGrain).addData(SAT_SURVEYS_ATTR, tID);
+						reportData.getDatum(reportGrain).addData(NET_PROM_ATTR, row[2]);
+					}
+					else if(surveyAnswer <= 6)
+					{
+						reportData.getDatum(reportGrain).addData(NON_NET_PROM_ATTR, row[2]);
 					}
 				}
 			}
-
 		}
 		
 		for( Entry<String, String> queryStats  : dbConnection.getStatistics().entrySet())
@@ -282,11 +264,35 @@ public final class LMICSATVolume extends Report implements DataAttributes
 			logInfoMessage( "Query " + queryStats.getKey() + ": " + queryStats.getValue());
 		}
 
-		double numSatCases;
+		double nps, surveyCount, promotedSurveys, nonPromotedSurveys;
 		for(String grain : reportData.getDatumIDList())
 		{
-			numSatCases = reportData.getDatum(grain).getAttributeData(SAT_SURVEYS_ATTR).size();
-			retval.add(new String[]{grain, "" + numSatCases });
+			surveyCount = reportData.getDatum(grain).getAttributeData(VIABLE_SURVEYS_ATTR).size();
+			
+			if(surveyCount > 0)
+			{
+				//a grain could contain zero surveys
+				if(reportData.getDatum(grain).getAttributeNameList().contains(NET_PROM_ATTR))
+				{
+					promotedSurveys = reportData.getDatum(grain).getAttributeData(NET_PROM_ATTR).size();
+				}
+				else
+				{
+					promotedSurveys = 0;
+				}
+
+				if(reportData.getDatum(grain).getAttributeNameList().contains(NON_NET_PROM_ATTR))
+				{
+					nonPromotedSurveys = reportData.getDatum(grain).getAttributeData(NON_NET_PROM_ATTR).size();
+				}
+				else
+				{
+					nonPromotedSurveys = 0;
+				}
+				
+				nps = (promotedSurveys/surveyCount) - (nonPromotedSurveys/surveyCount);
+				retval.add(new String[]{grain, "" + NumberFormatter.convertToPercentage(nps, 4) });
+			}
 		}
 
 		return retval;
@@ -313,6 +319,6 @@ public final class LMICSATVolume extends Report implements DataAttributes
 	@Override
 	public String getUnits() 
 	{
-		return DataUnits.SURVEY_COUNT;
+		return DataUnits.NET_PROMOTER_SCORE;
 	}
 }

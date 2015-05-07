@@ -317,7 +317,7 @@ public final class KasperskyRoster extends Roster implements Attributes
 	 * @see report.Report#runReport()
 	 */
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception 
+	protected ArrayList<String[]> loadData() throws Exception 
 	{
 		clearUsers();
 		load();
@@ -378,5 +378,11 @@ public final class KasperskyRoster extends Roster implements Attributes
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return null;
 	}
 }

@@ -14,6 +14,7 @@ import org.apache.log4j.MDC;
 import com.sutherland.helios.api.report.frontend.ReportFrontEndGroups;
 import com.sutherland.helios.data.Aggregation;
 import com.sutherland.helios.data.attributes.DataAttributes;
+import com.sutherland.helios.data.units.DataUnits;
 import com.sutherland.helios.exceptions.ExceptionFormatter;
 import com.sutherland.helios.exceptions.ReportSetupException;
 import com.sutherland.helios.logging.LogIDFactory;
@@ -153,20 +154,20 @@ public final class LMIDSATVolume extends Report  implements DataAttributes
 	 * @see helios.Report#runReport(java.lang.String, java.lang.String)
 	 */
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception
+	protected ArrayList<String[]> loadData() throws Exception
 	{
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 		
 		dsatCaseReport = new LMIDSATCases();
 		dsatCaseReport.setChildReport(true);
 		dsatCaseReport.setParameters(getParameters());
-
+		dsatCaseReport.startReport();
+		
 		Aggregation reportGrainData = new Aggregation();
 
 		String reportGrain;
-		//int timeGrain, userGrain;
-
-		for(String[] row : dsatCaseReport.runReport())
+		
+		for(String[] row : dsatCaseReport.getData())
 		{
 			reportGrain = row[3];
 
@@ -207,5 +208,11 @@ public final class LMIDSATVolume extends Report  implements DataAttributes
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return DataUnits.SURVEY_COUNT;
 	}
 }

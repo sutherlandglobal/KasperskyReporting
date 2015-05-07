@@ -177,7 +177,7 @@ public final class LMIDSATCases extends Report
 		retval.add("Q2");
 		retval.add("Q3");
 		retval.add("Q4");
-		retval.add("Q5");
+		retval.add("Comments");
 		retval.add("CSAT (%)");
 
 
@@ -188,11 +188,11 @@ public final class LMIDSATCases extends Report
 	 * @see helios.Report#runReport(java.lang.String, java.lang.String)
 	 */
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception
+	protected ArrayList<String[]> loadData() throws Exception
 	{
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
-		String query = "SELECT Date,Session_ID,Customer_Name,Technician_Name,Technician_ID,Q1,Q2,Q3,Q4,Q5 FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
+		String query = "SELECT Date,Session_ID,Customer_Name,Technician_Name,Technician_ID,Q1,Q2,Q3,Q4,Comments FROM LMI_10982630_Customer_Survey WHERE Date >= '" + 
 				getParameters().getStartDate() + 
 				"' AND Date < '" + 
 				getParameters().getEndDate() + 
@@ -204,7 +204,7 @@ public final class LMIDSATCases extends Report
 		roster.getParameters().setTeamNames(getParameters().getTeamNames());
 		roster.load();
 
-		String tID, q1, q2, q3, q4, q5;
+		String tID, q1, q2, q3, q4, comments;
 		int maxPoints, surveyPoints;
 		for(String[] row:  dbConnection.runQuery(query))
 		{
@@ -224,7 +224,7 @@ public final class LMIDSATCases extends Report
 				q2 = row[6];
 				q3 = row[7];
 				q4 = row[8];
-				q5 = row[9];
+				comments = row[9];
 				
 				if( !q1.equals("") )
 				{
@@ -247,12 +247,6 @@ public final class LMIDSATCases extends Report
 				if( !q4.equals("") )
 				{
 					surveyPoints += Integer.parseInt(q4);
-					maxPoints += 10;
-				}
-				
-				if( !q5.equals("") )
-				{
-					surveyPoints += Integer.parseInt(q5);
 					maxPoints += 10;
 				}
 				
@@ -281,7 +275,7 @@ public final class LMIDSATCases extends Report
 									q2,
 									q3,
 									q4,
-									q5,
+									comments,
 									"" + NumberFormatter.convertToPercentage(csat, 4)
 							}
 						);
@@ -314,5 +308,11 @@ public final class LMIDSATCases extends Report
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return null;
 	}
 }

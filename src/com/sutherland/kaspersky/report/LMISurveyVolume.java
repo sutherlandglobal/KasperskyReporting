@@ -15,6 +15,7 @@ import com.sutherland.helios.api.report.frontend.ReportFrontEndGroups;
 import com.sutherland.helios.data.Aggregation;
 import com.sutherland.helios.data.attributes.DataAttributes;
 import com.sutherland.helios.data.granularity.user.UserGrains;
+import com.sutherland.helios.data.units.DataUnits;
 import com.sutherland.helios.database.connection.SQL.ConnectionFactory;
 import com.sutherland.helios.database.connection.SQL.RemoteConnection;
 import com.sutherland.helios.date.formatting.DateFormatter;
@@ -190,7 +191,7 @@ public final class LMISurveyVolume extends Report implements DataAttributes
 	 * @see helios.Report#runReport(java.lang.String, java.lang.String)
 	 */
 	@Override
-	protected ArrayList<String[]> runReport() throws Exception
+	protected ArrayList<String[]> loadData() throws Exception
 	{
 		ArrayList<String[]> retval = new ArrayList<String[]>();
 
@@ -270,5 +271,11 @@ public final class LMISurveyVolume extends Report implements DataAttributes
 	protected void logWarnMessage(String message) 
 	{
 		logger.log(Level.WARN, message);
+	}
+
+	@Override
+	public String getUnits() 
+	{
+		return DataUnits.SURVEY_COUNT;
 	}
 }
